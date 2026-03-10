@@ -59,10 +59,3 @@ ax.set_ylabel("Price")
 ax.legend()
 
 st.pyplot(fig)
-
-from sklearn.metrics import r2_score
-
-pred = model.predict(X_test)
-accuracy = r2_score(y_test, pred)
-
-st.write("Model Accuracy:", accuracy)
