@@ -3,34 +3,49 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
 
 st.title("AI FinTech Stock Price Prediction")
 
 stock = st.text_input("Enter Stock Symbol", "RELIANCE.NS")
 
-data = yf.download(stock, start="2015-01-01")
+if st.button("Predict Stock Price"):
 
-st.subheader("Stock Data")
-st.write(data.tail())
+    data = yf.download(stock, start="2015-01-01")
 
-data = data[['Close']]
+    st.subheader("Historical Stock Data")
+    st.write(data)
 
-forecast_days = 30
-data['Prediction'] = data['Close'].shift(-forecast_days)
+    data = data[['Close']]
 
-X = np.array(data.drop(['Prediction'], axis=1))
-X = X[:-forecast_days]
+    forecast_days = 30
+    data['Prediction'] = data['Close'].shift(-forecast_days)
 
-y = np.array(data['Prediction'])
-y = y[:-forecast_days]
+    X = np.array(data.drop(['Prediction'], axis=1))
+    X = X[:-forecast_days]
 
-model = LinearRegression()
-model.fit(X, y)
+    y = np.array(data['Prediction'])
+    y = y[:-forecast_days]
 
-forecast = model.predict(X[-forecast_days:])
+    model = LinearRegression()
+    model.fit(X, y)
 
-st.subheader("Predicted Future Prices")
-st.write(forecast)
+    forecast = model.predict(X[-forecast_days:])
 
-st.subheader("Stock Price Chart")
-st.line_chart(data['Close'])
+    future_dates = pd.date_range(start=data.index[-1], periods=forecast_days+1)[1:]
+
+    prediction_df = pd.DataFrame({
+        "Date": future_dates,
+        "Predicted Price": forecast
+    })
+
+    st.subheader("Future Price Prediction")
+    st.write(prediction_df)
+
+    fig, ax = plt.subplots()
+    ax.plot(data.index, data['Close'])
+    ax.set_title("Stock Price History")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price")
+
+    st.pyplot(fig)
