@@ -32,20 +32,37 @@ if st.button("Predict Stock Price"):
 
     forecast = model.predict(X[-forecast_days:])
 
-    future_dates = pd.date_range(start=data.index[-1], periods=forecast_days+1)[1:]
+future_dates = pd.date_range(start=data.index[-1], periods=forecast_days+1)[1:]
 
-    prediction_df = pd.DataFrame({
-        "Date": future_dates,
-        "Predicted Price": forecast
-    })
+prediction_df = pd.DataFrame({
+    "Date": future_dates,
+    "Predicted Price": forecast
+})
 
-    st.subheader("Future Price Prediction")
-    st.write(prediction_df)
+# remove time (00:00:00)
+prediction_df["Date"] = prediction_df["Date"].dt.date
 
-    fig, ax = plt.subplots()
-    ax.plot(data.index, data['Close'])
-    ax.set_title("Stock Price History")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Price")
+st.subheader("Future Price Prediction")
+st.write(prediction_df)
 
-    st.pyplot(fig)
+fig, ax = plt.subplots()
+
+# historical prices
+ax.plot(data.index, data['Close'], label="Historical Price")
+
+# predicted prices
+ax.plot(future_dates, forecast, label="Predicted Price", linestyle="dashed")
+
+ax.set_title("Stock Price Prediction")
+ax.set_xlabel("Date")
+ax.set_ylabel("Price")
+ax.legend()
+
+st.pyplot(fig)
+
+from sklearn.metrics import r2_score
+
+pred = model.predict(X_test)
+accuracy = r2_score(y_test, pred)
+
+st.write("Model Accuracy:", accuracy)
