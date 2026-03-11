@@ -12,6 +12,8 @@ stock = st.text_input("Enter Stock Symbol", "RELIANCE.NS")
 if st.button("Predict Stock Price"):
 
     data = yf.download(stock, start="2015-01-01")
+
+    # remove time from date
     data.index = data.index.date
 
     st.subheader("Historical Stock Data")
@@ -33,30 +35,25 @@ if st.button("Predict Stock Price"):
 
     forecast = model.predict(X[-forecast_days:])
 
-future_dates = pd.date_range(start=data.index[-1], periods=forecast_days+1)[1:]
+    future_dates = pd.date_range(start=data.index[-1], periods=forecast_days+1)[1:]
+    future_dates = pd.to_datetime(future_dates).date
 
-prediction_df = pd.DataFrame({
-    "Date": future_dates,
-    "Predicted Price": forecast
-})
+    prediction_df = pd.DataFrame({
+        "Date": future_dates,
+        "Predicted Price": forecast
+    })
 
-# remove time (00:00:00)
-prediction_df["Date"] = prediction_df["Date"].dt.date
+    st.subheader("Future Price Prediction")
+    st.write(prediction_df)
 
-st.subheader("Future Price Prediction")
-st.write(prediction_df)
+    fig, ax = plt.subplots()
 
-fig, ax = plt.subplots()
+    ax.plot(data.index, data['Close'], label="Historical Price")
+    ax.plot(future_dates, forecast, label="Predicted Price", linestyle="dashed")
 
-# historical prices
-ax.plot(data.index, data['Close'], label="Historical Price")
+    ax.set_title("Stock Price Prediction")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price")
+    ax.legend()
 
-# predicted prices
-ax.plot(future_dates, forecast, label="Predicted Price", linestyle="dashed")
-
-ax.set_title("Stock Price Prediction")
-ax.set_xlabel("Date")
-ax.set_ylabel("Price")
-ax.legend()
-
-st.pyplot(fig)
+    st.pyplot(fig)
