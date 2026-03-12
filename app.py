@@ -12,16 +12,17 @@ from sklearn.metrics import r2_score
 
 st.title("AI Stock Prediction & Investment Analytics Dashboard")
 
-# Company search (name instead of ticker)
+# -------------------------
+# Company search
+# -------------------------
+
 company_dict = {
     "Reliance Industries": "RELIANCE.NS",
     "TCS": "TCS.NS",
     "Infosys": "INFY.NS",
     "HDFC Bank": "HDFCBANK.NS",
     "ICICI Bank": "ICICIBANK.NS",
-    "State Bank of India": "SBIN.NS",
-    "Wipro": "WIPRO.NS",
-    "HCL Technologies": "HCLTECH.NS",
+    "State Bank of India": "SBIN.NS"
 }
 
 company = st.selectbox("Search Company", list(company_dict.keys()))
@@ -29,42 +30,64 @@ ticker = company_dict[company]
 
 if st.button("Run Analysis"):
 
-    # ---------------------------
-    # 1 Fetch Historical Data
-    # ---------------------------
+    # -------------------------
+    # Fetch Data
+    # -------------------------
 
-    data = yf.download(ticker, start="2015-01-01")
+    data = yf.download(ticker, start="2010-01-01")
+
+    data.index = data.index.date  # remove time
 
     st.subheader("Historical Stock Data")
-    st.dataframe(data.tail())
 
-    # ---------------------------
-    # 2 Data Preprocessing
-    # ---------------------------
+    st.dataframe(data)
 
-    data = data[["Close"]]
-    data.dropna(inplace=True)
+    st.subheader("Historical Price Chart")
+
+    st.line_chart(data["Close"])
+
+    # -------------------------
+    # Preprocessing
+    # -------------------------
+
+    df = data[["Close"]].copy()
 
     forecast_days = 30
-    data["Prediction"] = data["Close"].shift(-forecast_days)
 
-    X = np.array(data.drop(["Prediction"], axis=1))
+    df["Prediction"] = df["Close"].shift(-forecast_days)
+
+    X = np.array(df.drop(["Prediction"], axis=1))
     X = X[:-forecast_days]
 
-    y = np.array(data["Prediction"])
+    y = np.array(df["Prediction"])
     y = y[:-forecast_days]
 
-    # ---------------------------
-    # 3 Train Test Split
-    # ---------------------------
+    # -------------------------
+    # Train Test Split
+    # -------------------------
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=0.2, shuffle=False
     )
 
-    # ---------------------------
-    # 4 Machine Learning Models
-    # ---------------------------
+    st.subheader("Train/Test Split")
+
+    train_size = len(X_train)
+    test_size = len(X_test)
+
+    fig, ax = plt.subplots()
+
+    ax.pie(
+        [train_size, test_size],
+        labels=["Training Data", "Testing Data"],
+        autopct="%1.1f%%"
+    )
+
+    st.pyplot(fig)
+
+    # -------------------------
+    # ML Models
+    # -------------------------
 
     lr = LinearRegression()
     rf = RandomForestRegressor()
@@ -74,65 +97,85 @@ if st.button("Run Analysis"):
     rf.fit(X_train, y_train)
     svr.fit(X_train, y_train)
 
-    # ---------------------------
-    # 5 Model Accuracy
-    # ---------------------------
+    # -------------------------
+    # Model Accuracy
+    # -------------------------
 
     lr_acc = r2_score(y_test, lr.predict(X_test))
     rf_acc = r2_score(y_test, rf.predict(X_test))
     svr_acc = r2_score(y_test, svr.predict(X_test))
 
-    acc_df = pd.DataFrame(
-        {
-            "Model": ["Linear Regression", "Random Forest", "SVR"],
-            "Accuracy": [lr_acc, rf_acc, svr_acc],
-        }
-    )
+    acc_df = pd.DataFrame({
+        "Model": ["Linear Regression", "Random Forest", "SVR"],
+        "Accuracy": [lr_acc, rf_acc, svr_acc]
+    })
 
     st.subheader("Model Accuracy Comparison")
 
     fig, ax = plt.subplots()
+
     ax.bar(acc_df["Model"], acc_df["Accuracy"])
-    ax.set_ylabel("R2 Score")
-    ax.set_title("Model Accuracy Comparison")
+
+    ax.set_ylabel("R² Score")
+
     st.pyplot(fig)
 
-    # ---------------------------
-    # 6 Moving Averages
-    # ---------------------------
+    # -------------------------
+    # Moving Average
+    # -------------------------
 
-    data["MA50"] = data["Close"].rolling(50).mean()
-    data["MA200"] = data["Close"].rolling(200).mean()
+    df["MA50"] = df["Close"].rolling(50).mean()
+    df["MA200"] = df["Close"].rolling(200).mean()
 
     st.subheader("Moving Average Trend")
 
     fig, ax = plt.subplots()
-    ax.plot(data.index, data["Close"], label="Price")
-    ax.plot(data.index, data["MA50"], label="MA50")
-    ax.plot(data.index, data["MA200"], label="MA200")
+
+    ax.plot(df.index, df["Close"], label="Price")
+
+    ax.plot(df.index, df["MA50"], label="MA50")
+
+    ax.plot(df.index, df["MA200"], label="MA200")
+
     ax.legend()
+
     st.pyplot(fig)
 
-    # ---------------------------
-    # 7 Volatility Analysis
-    # ---------------------------
+    # -------------------------
+    # Volatility
+    # -------------------------
 
-    data["Returns"] = data["Close"].pct_change()
+    df["Returns"] = df["Close"].pct_change()
 
-    volatility = data["Returns"].std()
-
-    st.subheader("Volatility Analysis")
-
-    st.write("Stock Volatility:", volatility)
+    st.subheader("Volatility Distribution")
 
     fig, ax = plt.subplots()
-    ax.hist(data["Returns"].dropna(), bins=50)
-    ax.set_title("Return Distribution")
+
+    ax.hist(df["Returns"].dropna(), bins=50)
+
     st.pyplot(fig)
 
-    # ---------------------------
-    # 8 Prediction Models
-    # ---------------------------
+    # -------------------------
+    # Backtesting
+    # -------------------------
+
+    st.subheader("Backtesting (Actual vs Predicted)")
+
+    predictions = lr.predict(X_test)
+
+    fig, ax = plt.subplots()
+
+    ax.plot(y_test, label="Actual")
+
+    ax.plot(predictions, label="Predicted")
+
+    ax.legend()
+
+    st.pyplot(fig)
+
+    # -------------------------
+    # Future Prediction
+    # -------------------------
 
     X_future = X[-forecast_days:]
 
@@ -142,55 +185,57 @@ if st.button("Run Analysis"):
 
     avg_prediction = (lr_pred + rf_pred + svr_pred) / 3
 
-    future_dates = pd.date_range(start=data.index[-1], periods=forecast_days + 1)[1:]
+    future_dates = pd.date_range(
+        start=pd.to_datetime(df.index[-1]),
+        periods=forecast_days + 1
+    )[1:]
 
-    pred_df = pd.DataFrame(
-        {
-            "Date": future_dates,
-            "Predicted Price": avg_prediction,
-        }
-    )
+    future_dates = future_dates.date
+
+    pred_df = pd.DataFrame({
+        "Date": future_dates,
+        "Predicted Price": avg_prediction
+    })
 
     st.subheader("Future Price Prediction")
+
     st.dataframe(pred_df)
 
-    # ---------------------------
-    # 9 Prediction Visualization
-    # ---------------------------
+    # -------------------------
+    # Prediction Visualization
+    # -------------------------
+
+    st.subheader("Prediction Trend")
 
     fig, ax = plt.subplots()
 
-    ax.plot(data.index[-200:], data["Close"].tail(200), label="Historical Price")
+    ax.plot(df.index[-200:], df["Close"].tail(200), label="Historical")
 
-    ax.plot(future_dates, avg_prediction, linestyle="dashed", label="Predicted Price")
+    ax.plot(future_dates, avg_prediction, linestyle="dashed", label="Prediction")
 
     ax.legend()
 
-    ax.set_title("Stock Price Prediction")
-
     st.pyplot(fig)
 
-    # ---------------------------
-    # 10 Portfolio Simulation
-    # ---------------------------
+    # -------------------------
+    # Portfolio Simulation
+    # -------------------------
 
     st.subheader("Portfolio Simulation")
 
-    investment = st.number_input("Investment Amount (₹)", 1000)
+    investment = st.number_input("Investment Amount (₹)", min_value=1000)
 
-    current_price = data["Close"].iloc[-1]
+    current_price = float(df["Close"].iloc[-1])
 
-    predicted_price = avg_prediction[-1]
+    predicted_price = float(avg_prediction[-1])
 
     future_value = investment * (predicted_price / current_price)
 
     st.write("Current Price:", current_price)
 
-    st.write("Predicted Price (30 days):", predicted_price)
+    st.write("Predicted Price (30 Days):", predicted_price)
 
-    st.write("Estimated Portfolio Value:", future_value)
-
-    # Portfolio chart
+    st.write("Estimated Portfolio Value:", round(future_value, 2))
 
     portfolio_values = investment * (avg_prediction / current_price)
 
